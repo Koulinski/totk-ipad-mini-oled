@@ -25,14 +25,18 @@ Keep the game, update, console keys, fonts, saves, and generated shader data on 
    xcrun --sdk iphoneos metal --version
    ```
 
-4. In Terminal, run the following from a folder where both repositories can be cloned as siblings. The two `git apply` commands check and then apply the patch to the pinned upstream revision.
+4. Run this block together in Terminal from a folder where both repositories can be cloned as siblings. It checks out the reviewed patch commit and verifies the patch's SHA-256 before applying it to the pinned upstream revision. If a check fails, stop and use a fresh checkout from the listed GitHub URLs.
 
    ```sh
-   git clone https://github.com/Koulinski/totk-ipad-mini-oled.git
-   git clone https://github.com/ly05010419/MacNativeGames.git
-   cd MacNativeGames
-   git switch --detach 4fdda41562a1c783fb1aacd18891ad4f48b8c360
-   git apply --check ../totk-ipad-mini-oled/ipad-mini-oled.patch
+   git clone https://github.com/Koulinski/totk-ipad-mini-oled.git &&
+   git -C totk-ipad-mini-oled switch --detach 06bb3bebad7f7dc7522219e481efff50999cfa90 &&
+   printf '%s  %s\n' \
+     'e8e58eeeda90dee5a700a65fe0174985425af69ba2b0ff4afc192d727f0c590d' \
+     'totk-ipad-mini-oled/ipad-mini-oled.patch' | shasum -a 256 -c &&
+   git clone https://github.com/ly05010419/MacNativeGames.git &&
+   cd MacNativeGames &&
+   git switch --detach 4fdda41562a1c783fb1aacd18891ad4f48b8c360 &&
+   git apply --check ../totk-ipad-mini-oled/ipad-mini-oled.patch &&
    git apply ../totk-ipad-mini-oled/ipad-mini-oled.patch
    ```
 
@@ -53,7 +57,7 @@ Keep the game, update, console keys, fonts, saves, and generated shader data on 
 
    Use the actual `.nsp` or `.nsz` update filename. For an NSP base, add one of `--firmware "/path/to/your/unpacked-firmware"` or `--shared-fonts "/path/to/your/extracted-fonts"` to the build command. On a fresh build, the tool reports the update version from verified ExeFS hashes. Confirm it identifies **1.2.1**. The builder makes the Full Height overlay and shader seed locally. Check that the IPA exists at the printed output path.
 
-8. Install over USB with the iPad unlocked. Before updating, quit the app and [back up its Documents](#back-up-and-switch-save-profiles). Keep your team and bundle identifier the same to retain those files.
+8. Sign and install only the IPA you built locally in step 7. Skip prebuilt IPAs and third-party installers. Install over USB with the iPad unlocked. Before updating, quit the app and [back up its Documents](#back-up-and-switch-save-profiles). Keep your team and bundle identifier the same to retain those files.
 
    ```sh
    python3.14 games/totk/ios/tools/install_device.py "$ipa" --device "Your iPad name"
@@ -160,6 +164,8 @@ The longest gaps were about 83 ms in the first sample and 133 ms on the repeat. 
 | Signing or provisioning fails | Check Xcode Accounts, the Apple Development certificate and its private key, the team, device registration, and both required memory entitlements. The helper prints the location of its Xcode log if provisioning fails. |
 | Cheats button is missing | Confirm you built the 1.2.1 update, load a save, and tap the game view to reveal the toolbar. A refused switch shows a message in the Cheats panel. |
 | Build or install runs out of space | Check free space on both devices. Keep the work folder and IPA on one APFS volume so the builder can reuse data by cloning it. |
-| First launch takes time or a new scene stutters | Give initial verification and shader work time to finish. Try **Shaders → Build Shaders** and compare the same route again. When reporting a problem, include the preset, area, shader-cache state, and frame generation setting. The app writes `log.txt` in its Documents. Keep game files and account details private. |
+| First launch takes time or a new scene stutters | Give initial verification and shader work time to finish. Try **Shaders → Build Shaders** and compare the same route again. When reporting a problem, include the preset, area, shader-cache state, and frame generation setting. The app writes `log.txt` in its Documents. |
+
+Before posting a log excerpt or screenshot, redact identifying paths, usernames, email addresses, device names and IDs, and Apple account or team details. Share only the lines needed to reproduce the issue. Never post `prod.keys`, other keys, passwords, access tokens, provisioning profiles, signed apps, or game files.
 
 The patch is distributed under the MIT license with upstream notices preserved. Tears of the Kingdom and Nintendo Switch are trademarks of Nintendo. This project is independent of Nintendo.
