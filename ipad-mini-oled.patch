@@ -23,7 +23,7 @@ index f2b236bdc7114d0baeed3f35fe7e183f3b1a6b6d..0182ac8aecfc1ee4301ef36c449291d5
  games/totk/build/
  games/totk/extracted/
 diff --git a/games/totk/Makefile b/games/totk/Makefile
-index faa8d1e450d95e22cb92721790fe945e384db80b..477e0e3cebcc3e9d884da87952a19fffb470070f 100644
+index faa8d1e450d95e22cb92721790fe945e384db80b..7e4de7bc63c44e6558f1a1bef1651941096544c3 100644
 --- a/games/totk/Makefile
 +++ b/games/totk/Makefile
 @@ -327,8 +327,8 @@ probe-audio-effects: runtime probe-reverb
@@ -37,6 +37,15 @@ index faa8d1e450d95e22cb92721790fe945e384db80b..477e0e3cebcc3e9d884da87952a19fff
  probe-world-survey: build/world-survey-probe
  	build/world-survey-probe
  	@TOTK_PROBE_NEGATIVE=1 build/world-survey-probe > analysis/world-survey-negative.log 2>&1; test $$? -eq 1
+@@ -351,7 +351,7 @@ build/v121/runtime_tables.h: scripts/prepare_runtime.py analysis/v121-port/phase
+ build/v121/romfs_config.h: scripts/prepare_romfs_backend.py extracted/v121/romfs/index.json
+ 	"$(PY)" scripts/prepare_romfs_backend.py --version v121
+ build/totk-native-v121: $(wildcard runtime/*.[ch] runtime/*.m runtime/*.S) build/v121/runtime_tables.h build/v121/romfs_config.h build/shared_fonts_config.h $(GFX_OBJECTS) Makefile
+-	xcrun clang -std=c11 $(NATIVE_OPT) -g -Wall -Wextra -Werror -Wno-deprecated-declarations -Ithird_party/d2r_gfx/gfx/nvn/include -DTOTK_GAME_V121=1 -Ibuild/v121 -Ibuild -I/opt/homebrew/opt/opus/include/opus -I/opt/homebrew/opt/libvpx/include runtime/loader.c runtime/game_patches.c runtime/world_survey.c runtime/game_slot.c runtime/services.c runtime/romfs.c runtime/threads.c runtime/gate.S runtime/hle_stack.S runtime/hle_stack.c runtime/thread_enter.S runtime/gfx_bridge.c runtime/frontend.m runtime/account.c runtime/input.c runtime/hid_feedback.c runtime/motion_fusion.c runtime/autoload.c runtime/gamepad.m runtime/gamepad_feedback.m runtime/gfx_probe.c runtime/vpool_probe.m runtime/gpu_path_probe.m runtime/memory_probe.c runtime/shared_font.c runtime/ipc.c runtime/audio_renderer.c runtime/audio_mixer.c runtime/audio_reverb.c runtime/audio_effects.c runtime/fs_host.c runtime/opus_codec.c runtime/movie_host.c runtime/time_host.c runtime/applet_host.c runtime/swkbd_host.c $(GFX_OBJECTS) /opt/homebrew/opt/opus/lib/libopus.a /opt/homebrew/opt/libvpx/lib/libvpx.a -framework Metal -framework MetalFX -framework Foundation -framework QuartzCore -framework ImageIO -framework CoreGraphics -framework CoreText -framework UniformTypeIdentifiers -fobjc-arc -framework Cocoa -framework CoreVideo -framework CoreFoundation -framework AudioToolbox -framework GameController -framework CoreHaptics -framework IOKit -o "$@"
++	xcrun clang -std=c11 $(NATIVE_OPT) -g -Wall -Wextra -Werror -Wno-deprecated-declarations -Ithird_party/d2r_gfx/gfx/nvn/include -DTOTK_GAME_V121=1 -Ibuild/v121 -Ibuild -I/opt/homebrew/opt/opus/include/opus -I/opt/homebrew/opt/libvpx/include runtime/loader.c runtime/game_patches.c runtime/world_survey.c runtime/game_slot.c runtime/services.c runtime/romfs.c runtime/threads.c runtime/gate.S runtime/hle_stack.S runtime/hle_stack.c runtime/thread_enter.S runtime/gfx_bridge.c runtime/frontend.m runtime/account.c runtime/input.c runtime/hid_feedback.c runtime/motion_fusion.c runtime/autoload.c runtime/gamepad.m runtime/gamepad_feedback.m runtime/gfx_probe.c runtime/vpool_probe.m runtime/gpu_path_probe.m runtime/memory_probe.c runtime/shared_font.c runtime/ipc.c runtime/audio_renderer.c runtime/audio_mixer.c runtime/audio_reverb.c runtime/audio_effects.c runtime/fs_host.c runtime/cheats.c runtime/opus_codec.c runtime/movie_host.c runtime/time_host.c runtime/applet_host.c runtime/swkbd_host.c $(GFX_OBJECTS) /opt/homebrew/opt/opus/lib/libopus.a /opt/homebrew/opt/libvpx/lib/libvpx.a -framework Metal -framework MetalFX -framework Foundation -framework QuartzCore -framework ImageIO -framework CoreGraphics -framework CoreText -framework UniformTypeIdentifiers -fobjc-arc -framework Cocoa -framework CoreVideo -framework CoreFoundation -framework AudioToolbox -framework GameController -framework CoreHaptics -framework IOKit -o "$@"
+ runtime-v121: build/totk-native-v121 build/pso_manifest.tsv build/pso_title.tsv
+ 
+ # Isolated 1.4.3 build; never replace the validated v0 executable or generated headers.
 diff --git a/games/totk/ios/Settings.bundle/Root.plist b/games/totk/ios/Settings.bundle/Root.plist
 new file mode 100644
 index 0000000000000000000000000000000000000000..4ec9ea66b8488cb026563ff4831c341f177d3417
@@ -1290,8 +1299,380 @@ index aa6c53fb73cdee7afe84d764ab6998afcf75f4ee..f1160ba168d88e6b27132491405fc59a
 +        fprintf(stderr, "[totk] %s ultrawide: key 4 switches 16:9 / %.4f (TOTK_ASPECT), starts %s; %u camera site(s), stubs +%#llx\n",
 +                version, g_aspect_wide, start ? "wide" : "at 16:9", nsite, (unsigned long long)stub_off);
  }
+diff --git a/games/totk/runtime/cheats.c b/games/totk/runtime/cheats.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..a38a64b233e37fd446178420d98f4f8e4f8aff76
+--- /dev/null
++++ b/games/totk/runtime/cheats.c
+@@ -0,0 +1,274 @@
++#include <TargetConditionals.h>
++#if TARGET_OS_IPHONE
++#include "runtime.h"
++#ifdef TOTK_GAME_V121
++#include "cheats_pickup_v121.h"
++#include "gamepad_layout.h"
++#include <mach/mach.h>
++#include <stdatomic.h>
++#include <stdio.h>
++#include <string.h>
++#include <time.h>
++
++/* Layout research for the stock 1.2.1 game by Eiffel2018 and the Mac port
++   community. This implementation uses guarded host reads and writes. */
++enum {
++    REFILL_HEARTS, REFILL_STAMINA, REFILL_BATTERY,
++    REFILL_WEAPON, REFILL_BOW, REFILL_SHIELD, RESTOCK_ARROWS, RESTOCK_RUPEES,
++    MOON_JUMP,
++    IOS_DATA_CHEAT_COUNT,
++    IOS_CHEAT_COUNT = IOS_DATA_CHEAT_COUNT + 1
++};
++static const char *const ios_data_cheat_names[IOS_DATA_CHEAT_COUNT] = {
++    "Refill Hearts", "Refill Stamina", "Refill Battery",
++    "Refill Weapon Durability", "Refill Bow Durability", "Refill Shield Durability",
++    "Keep 888 Arrows", "Keep 999,998 Rupees", "Moon Jump (Hold X)"
++};
++static const uint32_t stock_minimum[IOS_DATA_CHEAT_COUNT] = {
++    [RESTOCK_ARROWS] = 888, [RESTOCK_RUPEES] = 999998
++};
++static const uint32_t player_chain[] = {0x480, 0x228};
++static const uint32_t player_manager_slot = 0x046af308;
++static const uint32_t moon_jump_manager_slot = 0x0471dcb0;
++static const uint32_t game_data_manager_slot = 0x04721b98;
++static const uint32_t battery_manager_slot = 0x04728538;
++static const uint32_t health_component = 0x2f8, stamina_component = 0x3a8;
++static const uint32_t current_health_holder = 0x1830, maximum_health_holder = 0x1838;
++static const uint32_t value_offset = 8, player_settings = 0x198;
++static const uint32_t current_stamina_offset = 0x13fc, maximum_stamina_offset = 0x5bc;
++static uint64_t main_base;
++static _Atomic int available;
++static _Atomic uint32_t enabled;
++static _Atomic uint32_t *pickup_flag;
++static pthread_mutex_t ios_cheat_lock = PTHREAD_MUTEX_INITIALIZER;
++static pthread_cond_t cheat_enabled = PTHREAD_COND_INITIALIZER;
++static const char *ios_problem[IOS_CHEAT_COUNT];
++
++int runtime_cheats_guest_read(uint64_t address, void *out, unsigned width);
++int runtime_cheats_guest_replace(uint64_t address, uint32_t before, uint32_t after);
++const char *runtime_fs_backup_for_cheats(void);
++
++static uint64_t manager(uint32_t offset) {
++    uint64_t result = 0;
++    vm_size_t got = 0;
++    return vm_read_overwrite(mach_task_self(), (vm_address_t)(main_base + offset), sizeof result,
++                             (vm_address_t)(uintptr_t)&result, &got) == KERN_SUCCESS && got == sizeof result ? result : 0;
++}
++
++static uint64_t field_address(uint64_t base, uint32_t offset) {
++    return base && base <= UINT64_MAX - offset ? base + offset : 0;
++}
++
++static uint64_t heap_ptr(uint64_t base, uint32_t offset) {
++    uint64_t ptr = 0;
++    uint64_t address = field_address(base, offset);
++    return address && runtime_cheats_guest_read(address, &ptr, sizeof ptr) ? ptr : 0;
++}
++
++static uint64_t follow(uint64_t base, const uint32_t *offsets, size_t count) {
++    for (size_t i = 0; base && i < count; i++) base = heap_ptr(base, offsets[i]);
++    return base;
++}
++
++typedef struct { uint64_t current, maximum; } StatFields;
++
++static StatFields stat_fields(int index) {
++    uint64_t player = follow(manager(player_manager_slot), player_chain, sizeof player_chain / sizeof *player_chain);
++    if (!player) return (StatFields){0};
++    switch (index) {
++    case REFILL_STAMINA: {
++        uint64_t stamina = heap_ptr(player, stamina_component);
++        uint64_t settings = heap_ptr(manager(game_data_manager_slot), player_settings);
++        return (StatFields){field_address(stamina, current_stamina_offset), field_address(settings, maximum_stamina_offset)};
++    }
++    case REFILL_BATTERY: {
++        static const uint32_t battery_chain[] = {0x1e8, 0x58, 0xf8};
++        uint64_t battery = follow(manager(battery_manager_slot), battery_chain, sizeof battery_chain / sizeof *battery_chain);
++        uint64_t settings = heap_ptr(manager(game_data_manager_slot), player_settings);
++        return (StatFields){field_address(battery, 0x5c), field_address(settings, 0x594)};
++    }
++    case RESTOCK_ARROWS: {
++        uint64_t inventory = heap_ptr(manager(game_data_manager_slot), 0x138);
++        return (StatFields){.current = heap_ptr(inventory, 0xbe8)};
++    }
++    case RESTOCK_RUPEES: {
++        uint64_t save_data = heap_ptr(manager(game_data_manager_slot), 0xd8);
++        return (StatFields){.current = field_address(save_data, 0x28ea4)};
++    }
++    }
++
++    uint64_t actor = player;
++    if (index >= REFILL_WEAPON && index <= REFILL_SHIELD) {
++        static const uint32_t equipment_slots[] = {0x28, 0x70, 0x88};
++        const uint32_t equipped_chain[] = {0x230, equipment_slots[index - REFILL_WEAPON], 0x40, 0x228};
++        actor = follow(player, equipped_chain, sizeof equipped_chain / sizeof *equipped_chain);
++    }
++    uint64_t health = heap_ptr(actor, health_component);
++    uint64_t current = heap_ptr(health, current_health_holder);
++    uint64_t maximum = heap_ptr(health, maximum_health_holder);
++    return (StatFields){field_address(current, value_offset), field_address(maximum, value_offset)};
++}
++
++static int refill_allowed(int index, uint32_t current, uint32_t maximum) {
++    if (index == REFILL_HEARTS) {
++        /* Four units per heart. Ignore a dead player and invalid or uninitialized values. */
++        return current > 0 && current < maximum && maximum >= 12 && maximum <= 160 && maximum % 4 == 0;
++    }
++    if (index == REFILL_STAMINA || index == REFILL_BATTERY) {
++        float value, limit;
++        memcpy(&value, &current, sizeof value);
++        memcpy(&limit, &maximum, sizeof limit);
++        if (!(value >= 0.0f && value < limit)) return 0;
++        return index == REFILL_STAMINA ? limit >= 1000.0f && limit <= 3000.0f
++                                      : limit >= 3000.0f && limit <= 48000.0f;
++    }
++    if (stock_minimum[index]) return current < maximum;
++    /* Only replenish the equipped item's existing durability while it is still usable. */
++    return current > 0 && current < maximum && maximum <= 2000;
++}
++
++static void refill(int index) {
++    StatFields fields = stat_fields(index);
++    uint32_t current, maximum = stock_minimum[index], confirmed_maximum;
++    if (!fields.current || fields.current == fields.maximum ||
++        !runtime_cheats_guest_read(fields.current, &current, sizeof current) ||
++        (!maximum && !runtime_cheats_guest_read(fields.maximum, &maximum, sizeof maximum)) ||
++        !refill_allowed(index, current, maximum)) return;
++    /* A load can replace the player object between two reads. Resolve again just before the atomic store. */
++    StatFields confirmed = stat_fields(index);
++    if (confirmed.current != fields.current || confirmed.maximum != fields.maximum ||
++        (fields.maximum && (!runtime_cheats_guest_read(fields.maximum, &confirmed_maximum, sizeof confirmed_maximum) ||
++                            confirmed_maximum != maximum))) return;
++    runtime_cheats_guest_replace(fields.current, current, maximum);
++}
++
++/* Moon Jump raises vertical velocity while the game receives the X button. */
++static uint64_t moon_jump_velocity(void) {
++    static const uint32_t physics_chain[] = {0xc8, 0x178, 0x30};
++    uint64_t body = follow(manager(moon_jump_manager_slot), physics_chain, sizeof physics_chain / sizeof *physics_chain);
++    return field_address(body, 0xfc);
++}
++
++static void moon_jump(void) {
++    if (!(runtime_input_buttons() & GAMEPAD_SWITCH_X)) return;
++    if (!follow(manager(player_manager_slot), player_chain, sizeof player_chain / sizeof *player_chain)) return;
++    uint64_t address = moon_jump_velocity();
++    uint32_t current;
++    if (!address || !runtime_cheats_guest_read(address, &current, sizeof current)) return;
++    const float upward_velocity = 10.0f;
++    float velocity;
++    uint32_t desired;
++    memcpy(&velocity, &current, sizeof velocity);
++    memcpy(&desired, &upward_velocity, sizeof desired);
++    if (!(velocity >= -200.0f && velocity <= 200.0f) || current == desired || address != moon_jump_velocity()) return;
++    runtime_cheats_guest_replace(address, current, desired);
++}
++
++static void *ios_cheat_thread(void *unused) {
++    (void)unused;
++    pthread_setname_np("cheats");
++    for (;;) {
++        pthread_mutex_lock(&ios_cheat_lock);
++        uint32_t on;
++        while (!(on = atomic_load(&enabled))) pthread_cond_wait(&cheat_enabled, &ios_cheat_lock);
++        if (runtime_front_focus() && !runtime_fs_save_busy()) {
++            for (int i = 0; i < MOON_JUMP; i++) if (on & (1 << i)) refill(i);
++            if (on & (1 << MOON_JUMP)) moon_jump();
++        }
++        pthread_mutex_unlock(&ios_cheat_lock);
++        const struct timespec interval = {.tv_nsec = 33000000};
++        nanosleep(&interval, NULL);
++    }
++    return NULL;
++}
++
++void runtime_cheats_launch(Module *m) {
++    /* The iOS loader also verifies the embedded segment hashes. Refuse a different rewritten main. */
++    if (!m->base || !m->digest || strcmp(m->digest, ios_pickup_main_digest) || m->data_off > player_manager_slot ||
++        m->key_off < battery_manager_slot + sizeof(uint64_t)) return;
++    const char *pickup_problem = ios_pickup_validate(m, true);
++    bool pickup_installed = !pickup_problem;
++    if (!pickup_installed && ios_pickup_validate(m, false)) {
++        fprintf(stderr, "[totk] signed pickup verification failed: %s\n", pickup_problem);
++        runtime_fail("signed iOS pickup image mismatch");
++    }
++    if (pickup_installed) {
++        pickup_flag = (_Atomic uint32_t *)(void *)(m->base + IOS_PICKUP_CONTROL_PAGE + IOS_PICKUP_CONTROL_OFFSET);
++        atomic_store(pickup_flag, 0);
++    }
++    main_base = (uintptr_t)m->base;
++    pthread_t thread;
++    if (pthread_create(&thread, NULL, ios_cheat_thread, NULL) != 0) return;
++    pthread_detach(thread);
++    int count = IOS_DATA_CHEAT_COUNT + pickup_installed;
++    atomic_store(&available, count);
++    fprintf(stderr, "[totk] iOS cheats ready (1.2.1, %d; %d signed, session only)\n", count, pickup_installed);
++}
++
++int runtime_cheats_count(void) { return atomic_load(&available); }
++static int valid_cheat(int index) { return index >= 0 && index < runtime_cheats_count(); }
++const char *runtime_cheats_name(int index) {
++    if (!valid_cheat(index)) return "";
++    if (index < IOS_DATA_CHEAT_COUNT) return ios_data_cheat_names[index];
++    return "Item Pickup Multiplier (8x)";
++}
++
++typedef struct { _Atomic uint32_t *flags; uint32_t bit; } CheatSwitch;
++static CheatSwitch cheat_switch(int index) {
++    if (index < IOS_DATA_CHEAT_COUNT) return (CheatSwitch){&enabled, 1u << index};
++    return (CheatSwitch){pickup_flag, IOS_PICKUP_ENABLE_BIT};
++}
++
++int runtime_cheats_state(int index) {
++    if (!valid_cheat(index)) return 0;
++    CheatSwitch toggle = cheat_switch(index);
++    return atomic_load(toggle.flags) & toggle.bit ? CHEAT_ON : 0;
++}
++const char *runtime_cheats_problem(int index) {
++    if (!valid_cheat(index)) return "";
++    pthread_mutex_lock(&ios_cheat_lock);
++    const char *problem = ios_problem[index];
++    pthread_mutex_unlock(&ios_cheat_lock);
++    return problem ? problem : "";
++}
++
++int runtime_cheats_set(int index, int on) {
++    if (!valid_cheat(index)) return 0;
++    CheatSwitch toggle = cheat_switch(index);
++    pthread_mutex_lock(&ios_cheat_lock);
++    int was_on = !!(atomic_load(toggle.flags) & toggle.bit);
++    ios_problem[index] = NULL;
++    if (on && !was_on) {
++        ios_problem[index] = runtime_fs_backup_for_cheats();
++        if (!ios_problem[index]) {
++            atomic_fetch_or(toggle.flags, toggle.bit);
++            if (toggle.flags == &enabled) pthread_cond_signal(&cheat_enabled);
++        }
++    } else if (!on) {
++        atomic_fetch_and(toggle.flags, ~toggle.bit);
++    }
++    int state = runtime_cheats_state(index);
++    pthread_mutex_unlock(&ios_cheat_lock);
++    if (!!state != was_on) fprintf(stderr, "[totk] cheat \"%s\" %s\n", runtime_cheats_name(index), state ? "on" : "off");
++    return state;
++}
++#else
++void runtime_cheats_launch(Module *main_module) { (void)main_module; }
++int runtime_cheats_count(void) { return 0; }
++const char *runtime_cheats_name(int i) { (void)i; return ""; }
++int runtime_cheats_state(int i) { (void)i; return 0; }
++const char *runtime_cheats_problem(int i) { (void)i; return ""; }
++int runtime_cheats_set(int i, int on) { (void)i; (void)on; return 0; }
++#endif
++#elif defined(TOTK_GAME_V121)
++#include "cheats_pickup_v121.h"
++#include <stdio.h>
++
++void runtime_cheats_export_ios(Module *main_module) {
++    const char *problem = ios_pickup_export(main_module);
++    if (problem) {
++        fprintf(stderr, "[totk] cannot export the 8x pickup switch: %s\n", problem);
++        runtime_fail("unsupported 1.2.1 pickup image");
++    }
++}
++#endif
+diff --git a/games/totk/runtime/cheats_pickup_v121.h b/games/totk/runtime/cheats_pickup_v121.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..77aec56ed58e67999128ef5acd296c1e4d89a6e1
+--- /dev/null
++++ b/games/totk/runtime/cheats_pickup_v121.h
+@@ -0,0 +1,86 @@
++#pragma once
++#include "runtime.h"
++#include <stdbool.h>
++#include <string.h>
++
++/* The build digest binds the hook to the rewritten 1.2.1 main module.
++   Export changes its text before signing. The device changes only the data flag. */
++static const char ios_pickup_main_digest[] = "b7a2cc7e3465c4f11cd23f34cb38e037cf51d1d18310206f03b86c160ff2dbd0";
++enum {
++    IOS_PICKUP_SITE = 0x0162a408,
++    IOS_PICKUP_TEXT_END = 0x02b19a50,
++    IOS_PICKUP_RO_START = 0x02b1a000,
++    IOS_PICKUP_VENEER = 0x02b19bd0,
++    IOS_PICKUP_VENEER_WORDS = 10,
++    IOS_PICKUP_CONTROL_PAGE = 0x050ac000,
++    IOS_PICKUP_CONTROL_OFFSET = 64,
++    IOS_PICKUP_ENABLE_BIT = 1,
++    IOS_PICKUP_PAGE_SIZE = 0x4000,
++};
++_Static_assert(IOS_PICKUP_SITE + 4 < IOS_PICKUP_TEXT_END &&
++               IOS_PICKUP_VENEER >= IOS_PICKUP_TEXT_END &&
++               IOS_PICKUP_VENEER + IOS_PICKUP_VENEER_WORDS * 4 <= IOS_PICKUP_RO_START &&
++               IOS_PICKUP_CONTROL_PAGE < 0x08000000 &&
++               IOS_PICKUP_CONTROL_OFFSET + 4 <= IOS_PICKUP_PAGE_SIZE,
++               "pickup hook must fit the verified module layout");
++
++static inline uint32_t ios_pickup_count_word(unsigned count) {
++    return 0x52800001u | (count << 5); /* movz w1, #count */
++}
++
++static inline uint32_t ios_pickup_branch(uint32_t from, uint32_t to) {
++    return 0x14000000u | (((to - from) >> 2) & 0x03ffffffu);
++}
++
++static inline void ios_pickup_veneer(uint32_t words[IOS_PICKUP_VENEER_WORDS]) {
++    const uint32_t at = IOS_PICKUP_VENEER;
++    const uint32_t resume = IOS_PICKUP_SITE + 4;
++    const uint32_t pages = (IOS_PICKUP_CONTROL_PAGE >> 12) - ((at + 4) >> 12);
++    /* Both paths restore x9 and SP before executing the count assignment.
++       The load and TBZ leave NZCV untouched. */
++    const uint32_t code[IOS_PICKUP_VENEER_WORDS] = {
++        0xf81f0fe9u,                                             /* str x9, [sp, #-16]! */
++        0x90000009u | ((pages & 3u) << 29) | ((pages >> 2) << 5), /* adrp x9, control page */
++        0xb9400129u | ((IOS_PICKUP_CONTROL_OFFSET / 4u) << 10),  /* ldr w9, [x9, #64] */
++        0x36000089u,                                             /* tbz w9, #0, original */
++        0xf84107e9u,                                             /* ldr x9, [sp], #16 */
++        ios_pickup_count_word(8),
++        ios_pickup_branch(at + 24, resume),
++        0xf84107e9u,                                             /* original: ldr x9, [sp], #16 */
++        ios_pickup_count_word(1),
++        ios_pickup_branch(at + 36, resume),
++    };
++    memcpy(words, code, sizeof code);
++}
++
++static inline const char *ios_pickup_validate(const Module *m, bool installed) {
++    if (!m || !m->base || !m->name || strcmp(m->name, "main") ||
++        !m->digest || strcmp(m->digest, ios_pickup_main_digest) ||
++        m->text_end != IOS_PICKUP_TEXT_END || m->ro_off != IOS_PICKUP_RO_START ||
++        m->file_size > IOS_PICKUP_CONTROL_PAGE ||
++        m->file_size <= IOS_PICKUP_CONTROL_PAGE - IOS_PICKUP_PAGE_SIZE ||
++        m->size != IOS_PICKUP_CONTROL_PAGE + IOS_PICKUP_PAGE_SIZE)
++        return "unexpected 1.2.1 main image layout";
++
++    uint32_t words[IOS_PICKUP_VENEER_WORDS] = {0};
++    uint32_t expected = ios_pickup_count_word(1);
++    if (installed) {
++        ios_pickup_veneer(words);
++        expected = ios_pickup_branch(IOS_PICKUP_SITE, IOS_PICKUP_VENEER);
++    }
++    if (memcmp(m->base + IOS_PICKUP_SITE, &expected, sizeof expected) ||
++        memcmp(m->base + IOS_PICKUP_VENEER, words, sizeof words))
++        return "pickup hook differs from expected text";
++    return NULL;
++}
++
++static inline const char *ios_pickup_export(Module *m) {
++    const char *problem = ios_pickup_validate(m, false);
++    if (problem) return problem;
++    uint32_t words[IOS_PICKUP_VENEER_WORDS];
++    ios_pickup_veneer(words);
++    uint32_t branch = ios_pickup_branch(IOS_PICKUP_SITE, IOS_PICKUP_VENEER);
++    memcpy(m->base + IOS_PICKUP_VENEER, words, sizeof words);
++    memcpy(m->base + IOS_PICKUP_SITE, &branch, sizeof branch);
++    return NULL;
++}
 diff --git a/games/totk/runtime/frontend_ios.m b/games/totk/runtime/frontend_ios.m
-index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86229d4d90 100644
+index 24fedb63b19a53fd3667b661756551b55cbdc773..95d5ce51cbccb376c07ff48cfe47afa86a4630c9 100644
 --- a/games/totk/runtime/frontend_ios.m
 +++ b/games/totk/runtime/frontend_ios.m
 @@ -5,6 +5,8 @@ The app (ios/app/Sources/main.m) owns UIKit: it creates the full-screen Metal vi
@@ -1303,11 +1684,180 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
  #include "runtime.h"
  #include "totk_ui_lang.h"
  static CAMetalLayer *metalLayer;
-@@ -19,11 +21,331 @@ The app (ios/app/Sources/main.m) owns UIKit: it creates the full-screen Metal vi
+@@ -19,11 +21,504 @@ The app (ios/app/Sources/main.m) owns UIKit: it creates the full-screen Metal vi
  static unsigned vsyncCount;
  void hle_bind_system_event(void *,int);
  void hle_signal_system_event(void *);
 +static void show_overlay_buttons(void);
++
++@interface TOTKCheatsOverlay : NSObject
++@property(nonatomic, strong) UIButton *button;
++@property(nonatomic, strong) UIView *dimmer;
++@property(nonatomic, strong) UILabel *status;
++@property(nonatomic, strong) NSArray<UISwitch *> *switches;
++@property(nonatomic) BOOL applying;
++- (instancetype)initInView:(UIView *)host;
++@end
++static TOTKCheatsOverlay *cheatsOverlay;
++static _Atomic int cheatsOverlayOpen;
++
++static int cheats_capture_gamepad(uint64_t held, uint64_t pressed) {
++ (void)held; (void)pressed;
++ return atomic_load(&cheatsOverlayOpen);
++}
++
++static NSString *cheats_session_note(void) {
++ return @(TOTK_UI("重新启动游戏会关闭所有作弊开关。存档可能保留已更改的数值。",
++                 "Switches reset when you relaunch. Saved games can retain changed values."));
++}
++
++@implementation TOTKCheatsOverlay
++- (instancetype)initInView:(UIView *)host {
++ if (!(self = [super init])) return nil;
++ UIButtonConfiguration *configuration = UIButtonConfiguration.filledButtonConfiguration;
++ configuration.title = @(TOTK_UI("作弊码", "Cheats"));
++ configuration.baseBackgroundColor = [UIColor colorWithWhite:0.10 alpha:0.85];
++ configuration.baseForegroundColor = UIColor.whiteColor;
++ self.button = [UIButton buttonWithConfiguration:configuration primaryAction:nil];
++ self.button.hidden = YES;
++ self.button.translatesAutoresizingMaskIntoConstraints = NO;
++ [self.button addTarget:self action:@selector(open) forControlEvents:UIControlEventTouchUpInside];
++ [host addSubview:self.button];
++ UILayoutGuide *safe = host.safeAreaLayoutGuide;
++ [NSLayoutConstraint activateConstraints:@[
++  [self.button.centerXAnchor constraintEqualToAnchor:safe.centerXAnchor],
++  [self.button.topAnchor constraintEqualToAnchor:safe.topAnchor constant:4],
++  [self.button.heightAnchor constraintGreaterThanOrEqualToConstant:44]
++ ]];
++ return self;
++}
++- (void)buildPanel {
++ UIView *host = self.button.superview;
++ self.dimmer = [[UIView alloc] initWithFrame:host.bounds];
++ self.dimmer.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
++ self.dimmer.backgroundColor = [UIColor colorWithWhite:0 alpha:0.5];
++ self.dimmer.accessibilityViewIsModal = YES;
++ [host addSubview:self.dimmer];
++
++ UIStackView *panel = [UIStackView new];
++ panel.translatesAutoresizingMaskIntoConstraints = NO;
++ panel.axis = UILayoutConstraintAxisVertical;
++ panel.spacing = 12;
++ panel.layoutMarginsRelativeArrangement = YES;
++ panel.layoutMargins = UIEdgeInsetsMake(18, 20, 18, 20);
++ panel.backgroundColor = [UIColor colorWithWhite:0.11 alpha:1];
++ panel.layer.cornerRadius = 16;
++ [self.dimmer addSubview:panel];
++ UILayoutGuide *safe = self.dimmer.safeAreaLayoutGuide;
++ NSLayoutConstraint *width = [panel.widthAnchor constraintEqualToConstant:332];
++ width.priority = UILayoutPriorityDefaultHigh;
++ [NSLayoutConstraint activateConstraints:@[
++  width,
++  [panel.centerXAnchor constraintEqualToAnchor:safe.centerXAnchor],
++  [panel.centerYAnchor constraintEqualToAnchor:safe.centerYAnchor],
++  [panel.widthAnchor constraintLessThanOrEqualToAnchor:safe.widthAnchor constant:-24],
++  [panel.heightAnchor constraintLessThanOrEqualToAnchor:safe.heightAnchor constant:-24]
++ ]];
++
++ UILabel *title = [UILabel new];
++ title.text = @(TOTK_UI("作弊码", "Cheats"));
++ title.textColor = UIColor.whiteColor;
++ title.font = [UIFont systemFontOfSize:21 weight:UIFontWeightSemibold];
++ title.accessibilityTraits = UIAccessibilityTraitHeader;
++ [panel addArrangedSubview:title];
++
++ UIScrollView *scroll = [UIScrollView new];
++ scroll.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
++ [panel addArrangedSubview:scroll];
++ UIStackView *rows = [UIStackView new];
++ rows.translatesAutoresizingMaskIntoConstraints = NO;
++ rows.axis = UILayoutConstraintAxisVertical;
++ rows.spacing = 12;
++ [scroll addSubview:rows];
++ UILayoutGuide *content = scroll.contentLayoutGuide;
++ NSLayoutConstraint *showAll = [scroll.heightAnchor constraintEqualToAnchor:rows.heightAnchor];
++ // When space is tight, only the list shrinks. The title, status and Done remain outside it.
++ showAll.priority = UILayoutPriorityDefaultHigh - 1;
++ [NSLayoutConstraint activateConstraints:@[
++  [rows.topAnchor constraintEqualToAnchor:content.topAnchor],
++  [rows.bottomAnchor constraintEqualToAnchor:content.bottomAnchor],
++  [rows.leadingAnchor constraintEqualToAnchor:content.leadingAnchor],
++  [rows.trailingAnchor constraintEqualToAnchor:content.trailingAnchor],
++  [rows.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor],
++  showAll
++ ]];
++
++ NSMutableArray<UISwitch *> *switches = [NSMutableArray array];
++ for (int i = 0; i < runtime_cheats_count(); i++) {
++  UILabel *name = [UILabel new];
++  name.text = @(runtime_cheats_name(i));
++  name.textColor = UIColor.whiteColor;
++  name.numberOfLines = 0;
++  name.isAccessibilityElement = NO;
++  UISwitch *toggle = [UISwitch new];
++  toggle.tag = i;
++  toggle.accessibilityLabel = name.text;
++  [toggle setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
++  [toggle addTarget:self action:@selector(toggle:) forControlEvents:UIControlEventValueChanged];
++  [switches addObject:toggle];
++  UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[name, toggle]];
++  row.alignment = UIStackViewAlignmentCenter;
++  row.spacing = 12;
++  [row.heightAnchor constraintGreaterThanOrEqualToConstant:44].active = YES;
++  [rows addArrangedSubview:row];
++ }
++ self.switches = switches;
++
++ self.status = [UILabel new];
++ self.status.textColor = [UIColor colorWithWhite:0.8 alpha:1];
++ self.status.font = [UIFont systemFontOfSize:13];
++ self.status.numberOfLines = 0;
++ self.status.text = cheats_session_note();
++ [panel addArrangedSubview:self.status];
++ UIButton *done = [UIButton buttonWithType:UIButtonTypeSystem];
++ [done setTitle:@(TOTK_UI("完成", "Done")) forState:UIControlStateNormal];
++ [done.heightAnchor constraintGreaterThanOrEqualToConstant:44].active = YES;
++ [done addTarget:self action:@selector(close) forControlEvents:UIControlEventTouchUpInside];
++ [panel addArrangedSubview:done];
++}
++- (void)open {
++ if (!self.dimmer) [self buildPanel];
++ for (UISwitch *toggle in self.switches) {
++  toggle.on = !!(runtime_cheats_state((int)toggle.tag) & CHEAT_ON);
++  toggle.enabled = !self.applying;
++ }
++ self.dimmer.hidden = NO;
++ atomic_store(&cheatsOverlayOpen, 1);
++ show_overlay_buttons();
++ runtime_input_clear();
++ runtime_touch_pad_set(&(RuntimeGamepadState){0});
++ UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, self.switches.firstObject);
++}
++- (void)close {
++ self.dimmer.hidden = YES;
++ atomic_store(&cheatsOverlayOpen, 0);
++ show_overlay_buttons();
++ UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification, self.button);
++}
++- (void)toggle:(UISwitch *)sender {
++ int index = (int)sender.tag;
++ BOOL on = sender.isOn;
++ self.applying = YES;
++ for (UISwitch *toggle in self.switches) toggle.enabled = NO;
++ self.status.text = @(TOTK_UI("正在应用…", "Applying…"));
++ dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
++  int result = runtime_cheats_set(index, on);
++  const char *problem = runtime_cheats_problem(index);
++  NSString *message = *problem ? @(problem) : cheats_session_note();
++  dispatch_async(dispatch_get_main_queue(), ^{
++   self.applying = NO;
++   [sender setOn:!!(result & CHEAT_ON) animated:YES];
++   for (UISwitch *toggle in self.switches) toggle.enabled = YES;
++   self.status.text = message;
++  });
++ });
++}
++@end
 +
 +int mtl_manual_warm_start(void);
 +void mtl_manual_warm_cancel(void);
@@ -1548,11 +2098,12 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
 +static BOOL overlayGameplayTouchActive;
 +
 +static BOOL overlay_buttons_pinned(void) {
-+ return overlayGameplayTouchActive || !shaderOverlay.card.hidden || shaderOverlay.isBuilding || statsButton.menuOpen;
++ return overlayGameplayTouchActive || atomic_load(&cheatsOverlayOpen) || !shaderOverlay.card.hidden || shaderOverlay.isBuilding || statsButton.menuOpen;
 +}
 +
 +static void show_overlay_buttons(void) {
-+ if (!bootOverlay.hidden || !shaderOverlay) return;
++ if (!bootOverlay.hidden || !cheatsOverlay || !shaderOverlay) return;
++ cheatsOverlay.button.hidden = runtime_cheats_count() == 0;
 + shaderOverlay.toolbar.hidden = NO;
 + statsButton.hidden = NO;
 + [overlayButtonTimer invalidate];
@@ -1562,10 +2113,11 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
 +  (void)timer;
 +  overlayButtonTimer = nil;
 +  if (overlay_buttons_pinned()) return;
-+  if (shaderOverlay.button.tracking || statsButton.tracking) {
++  if (cheatsOverlay.button.tracking || shaderOverlay.button.tracking || statsButton.tracking) {
 +   show_overlay_buttons();
 +   return;
 +  }
++  cheatsOverlay.button.hidden = YES;
 +  shaderOverlay.toolbar.hidden = YES;
 +  statsButton.hidden = YES;
 + }];
@@ -1593,6 +2145,7 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
 +}
 +
 +void runtime_ios_add_overlay_controls(UIView *host) {
++ cheatsOverlay = [[TOTKCheatsOverlay alloc] initInView:host];
 + shaderOverlay = [[TOTKShaderOverlay alloc] initInView:host];
 + NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
 + [defaults registerDefaults:@{statsMetricsKey: @(FPS_METRIC_DEFAULT)}];
@@ -1613,15 +2166,16 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
 + statsButton.showsMenuAsPrimaryAction = YES;
 + [host addSubview:statsButton];
 + [NSLayoutConstraint activateConstraints:@[
-+  [statsButton.trailingAnchor constraintEqualToAnchor:shaderOverlay.toolbar.leadingAnchor constant:-8],
-+  [statsButton.topAnchor constraintEqualToAnchor:shaderOverlay.toolbar.topAnchor],
++  [statsButton.trailingAnchor constraintEqualToAnchor:cheatsOverlay.button.leadingAnchor constant:-8],
++  [statsButton.topAnchor constraintEqualToAnchor:cheatsOverlay.button.topAnchor],
 +  [statsButton.heightAnchor constraintGreaterThanOrEqualToConstant:44]
 + ]];
-+ for (UIButton *button in @[shaderOverlay.button, statsButton])
++ for (UIButton *button in @[cheatsOverlay.button, shaderOverlay.button, statsButton])
 +  [button addAction:[UIAction actionWithHandler:^(UIAction *action) {
 +   (void)action;
 +   show_overlay_buttons();
 +  }] forControlEvents:UIControlEventTouchUpOutside | UIControlEventTouchCancel];
++ runtime_gamepad_set_overlay(cheats_capture_gamepad);
 +}
 +
  void *front_metal_layer(void){return (__bridge void *)metalLayer;}
@@ -1636,7 +2190,7 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
   }
  }
  void runtime_boot_progress(const char *stage,uint64_t done,uint64_t total){
-@@ -54,13 +376,13 @@ void runtime_boot_status(const char *stage,const char *detail){
+@@ -54,13 +549,13 @@ void runtime_boot_status(const char *stage,const char *detail){
   NSString *d=[NSString stringWithUTF8String:detail?detail:TOTK_UI("正在处理，请稍候","Working, please wait")];
   dispatch_async(dispatch_get_main_queue(), ^{if(!bootOverlay||bootOverlay.hidden)return;bootStage.text=s;bootDetail.text=d;bootProgress.hidden=YES;});
  }
@@ -1652,7 +2206,7 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
    bootDetail.text=[NSString stringWithFormat:@(TOTK_UI("已处理 %llu/%llu 项","%llu/%llu items")),(unsigned long long)done,(unsigned long long)total];
    bootProgress.hidden=NO;bootProgress.progress=(float)frac;
   });
-@@ -69,6 +391,7 @@ void runtime_warm_done(void){}
+@@ -69,6 +564,7 @@ void runtime_warm_done(void){}
  uint64_t front_game_res(int docked){(void)docked;return (720ULL<<32)|1280;}
  static _Atomic int appActive=1;
  int runtime_front_focus(void){return atomic_load(&appActive);}
@@ -1660,7 +2214,7 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
  void mtl_app_active(int active);
  /* Not active (background, Control Center, lock): stop GPU submission (iOS rejects background GPU work) and tell the game focus changed, like the Mac window. */
  static void app_active_changed(int active){
-@@ -87,21 +410,42 @@ -(void)tick:(CADisplayLink *)l{(void)l;pthread_mutex_lock(&vsyncLock);for(unsign
+@@ -87,21 +583,42 @@ -(void)tick:(CADisplayLink *)l{(void)l;pthread_mutex_lock(&vsyncLock);for(unsign
  @end
  static TOTKVsync *vsyncTarget;
  
@@ -1714,6 +2268,63 @@ index 24fedb63b19a53fd3667b661756551b55cbdc773..ccc33da7ae931de1c584029bba9dda86
   bootOverlay=[[UIView alloc] initWithFrame:host.bounds];bootOverlay.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
   bootOverlay.backgroundColor=[UIColor colorWithRed:0.035 green:0.075 blue:0.09 alpha:1];
   CGFloat w=host.bounds.size.width,h=host.bounds.size.height;
+diff --git a/games/totk/runtime/fs_host.c b/games/totk/runtime/fs_host.c
+index 4148098da75fea48ffb15123fed5c2264d9c137f..9fb4d93116b52a284d3261e2fb6209966d8d8056 100644
+--- a/games/totk/runtime/fs_host.c
++++ b/games/totk/runtime/fs_host.c
+@@ -7,6 +7,10 @@
+ #include "autoload.h"
+ #include "runtime.h"
+ #include "fs_host.h"
++#include <TargetConditionals.h>
++#if TARGET_OS_IPHONE && defined(TOTK_GAME_V121)
++#include <copyfile.h>
++#endif
+ #include <dirent.h>
+ #include <errno.h>
+ #include <fcntl.h>
+@@ -85,6 +89,41 @@ static void init(void) {
+ }
+ static void ready(void) { pthread_once(&once, init); }
+ 
++#if TARGET_OS_IPHONE && defined(TOTK_GAME_V121)
++/* An autosave may capture refilled health. Keep one original copy of the save mount without the profile's caches. */
++const char *runtime_fs_backup_for_cheats(void) {
++    ready();
++    static const char failure[] = "Could not back up your saves.";
++    static const char busy[] = "The game is saving. Try again in a moment.";
++    char destination[1100], staging[1120];
++    snprintf(destination, sizeof destination, "%s-before-cheats", profile);
++    snprintf(staging, sizeof staging, "%s.pending", destination);
++    struct stat info;
++    if (stat(destination, &info) == 0) return S_ISDIR(info.st_mode) ? NULL : failure;
++    if (errno != ENOENT) return failure;
++
++    uint64_t save_version = atomic_load(&save_changed_ns);
++    if (runtime_fs_save_busy()) return busy;
++    DIR *dir = opendir(save_root);
++    if (!dir) return failure;
++    int has_data = 0;
++    for (struct dirent *item; (item = readdir(dir));) {
++        if (strcmp(item->d_name, ".") && strcmp(item->d_name, "..")) { has_data = 1; break; }
++    }
++    closedir(dir);
++    if (!has_data && save_version == atomic_load(&save_changed_ns)) return NULL;
++    if (remove_tree(staging) != 0) return failure;
++    int copied = copyfile(save_root, staging, NULL, COPYFILE_ALL | COPYFILE_RECURSIVE | COPYFILE_CLONE | COPYFILE_NOFOLLOW) == 0;
++    int changed = runtime_fs_save_busy() || save_version != atomic_load(&save_changed_ns);
++    if (copied && !changed && rename(staging, destination) == 0) {
++        fprintf(stderr, "[totk] cheats: original saves backed up to %s\n", destination);
++        return NULL;
++    }
++    remove_tree(staging);
++    return changed ? busy : failure;
++}
++#endif
++
+ /* ---------- mounts and paths ---------- */
+ static unsigned mount_add(const char *name, int kind, const char *root) {
+     if (!name || !*name || strlen(name) >= 32 || strchr(name, ':') || strchr(name, '/')) return R_INVALID_ARGUMENT;
 diff --git a/games/totk/runtime/game_patches.c b/games/totk/runtime/game_patches.c
 index fa1ff65dc8aa73a0091abc6c3013eb07c4d5fcde..55552a8c5f22216493e31d0811b295c6a79139c3 100644
 --- a/games/totk/runtime/game_patches.c
@@ -2212,10 +2823,10 @@ index 12a85f6c215ae65c25bc2ad1eecd4c2833b53fda..18b62d6b79318e4e04341419c55981bb
  static int disconnected_states(NpadState *out,int max,const uint32_t *id){if(id)input_log("joy-con state",*id);if(max<=0)return 0;if(!out)runtime_fail("controller output pointer");pthread_mutex_lock(&inputLock);*out=(NpadState){.sampling=++sample};pthread_mutex_unlock(&inputLock);return 1;}
  static void hold_type(int type){if(type<0||type>1)runtime_fail("invalid joy hold type");holdType=type;(void)holdType;}
 diff --git a/games/totk/runtime/loader.c b/games/totk/runtime/loader.c
-index c54e14a8e419b78141b2d352acb67143694a9f45..1798afdd87faca08b2fe20af6ecb900a458e33c9 100644
+index c54e14a8e419b78141b2d352acb67143694a9f45..ed31045120da762bb3f5639f839bfb7b542dde8d 100644
 --- a/games/totk/runtime/loader.c
 +++ b/games/totk/runtime/loader.c
-@@ -534,10 +534,15 @@ int main(int argc,char **argv) {
+@@ -534,10 +534,20 @@ int main(int argc,char **argv) {
   need(pthread_key_create(&environment_key,environment_destroy)==0,"thread environment key");
   for(unsigned i=0;i<NM;i++)map_module(&modules[i],argv[1]);
   for(unsigned i=0;i<NM;i++)relocate(&modules[i]);
@@ -2226,9 +2837,14 @@ index c54e14a8e419b78141b2d352acb67143694a9f45..1798afdd87faca08b2fe20af6ecb900a
 - if(!strcmp(argv[2],"export-ios")){const char *out=getenv("TOTK_EXPORT_IOS");need(out!=NULL,"export-ios needs TOTK_EXPORT_IOS=<dir>");export_ios_text(argv[1],out);return 0;}
 +  if(!strcmp(argv[2],"export-ios")){
 +   const char *out=getenv("TOTK_EXPORT_IOS");need(out!=NULL,"export-ios needs TOTK_EXPORT_IOS=<dir>");
++#if defined(TOTK_GAME_V121)
++   runtime_cheats_export_ios(&modules[i]);
+ #endif
 +   export_ios_text(argv[1],out);return 0;
 +  }
- #endif
++#else
++  runtime_cheats_launch(&modules[i]);
++#endif
 + }
   verify_identity(!strcmp(argv[2],"probe-identity-negative"));
   for(unsigned i=0;i<NM;i++){seal(&modules[i]);check_permissions(&modules[i]);}
@@ -2376,10 +2992,16 @@ index 01b131f5f2e381ca61f9d0c25826e9772fda082f..7d3bde562d449b2691c46b82e34306f0
  void movie_host_set_clock(uint64_t (*clock)(void));  /* probe only: a fake clock (ns) for the pacing */
  #endif
 diff --git a/games/totk/runtime/runtime.h b/games/totk/runtime/runtime.h
-index e7f728f569a6ef233c5cd0d40917911bec375d19..65732b89915c54bff413758b0ee434f73f13aa53 100644
+index e7f728f569a6ef233c5cd0d40917911bec375d19..80483ebda968dc4dc1f5d4ba816f6e5185735ece 100644
 --- a/games/totk/runtime/runtime.h
 +++ b/games/totk/runtime/runtime.h
-@@ -86,7 +86,8 @@ void runtime_front_run(void(*callback)(void));
+@@ -1,4 +1,5 @@
+ #pragma once
++#include <TargetConditionals.h>
+ #include <stdint.h>
+ #include <stddef.h>
+ #include <pthread.h>
+@@ -86,7 +87,8 @@ void runtime_front_run(void(*callback)(void));
  void runtime_boot_progress(const char *stage,uint64_t done,uint64_t total);
  void runtime_boot_status(const char *stage,const char *detail);
  void runtime_boot_count(const char *stage,uint64_t done,uint64_t total);   /* a boot step counted in items (shader import) */
@@ -2389,10 +3011,21 @@ index e7f728f569a6ef233c5cd0d40917911bec375d19..65732b89915c54bff413758b0ee434f7
     (0 when unset); runtime_output_res_extra_bytes is what the HeapDef overlay (scripts/make_output_res_overlay.py, same formula)
     adds to the texture heap and to Graphics, and so to the application pool (runtime/services.c). */
  int runtime_output_res(unsigned *w,unsigned *h);
-@@ -118,17 +119,20 @@ void runtime_memory_probe(void);
+@@ -118,17 +120,31 @@ void runtime_memory_probe(void);
  
  void runtime_input_key(unsigned code,int down);
  void runtime_input_clear(void);
++#if TARGET_OS_IPHONE
++void runtime_cheats_launch(Module *main_module);
++int runtime_cheats_count(void);
++const char *runtime_cheats_name(int index);
++int runtime_cheats_state(int index);
++const char *runtime_cheats_problem(int index);
++int runtime_cheats_set(int index, int enabled);
++enum { CHEAT_ON = 1 };
++#elif defined(TOTK_GAME_V121)
++void runtime_cheats_export_ios(Module *main_module);
++#endif
 +uint64_t runtime_input_buttons(void);   /* runtime/input.c: held buttons (keyboard and controller), npad bit order */
  int runtime_handheld_mode(void);   /* TOTK_OPERATION_MODE=handheld (runtime/services.c) */
  void *runtime_input_override(const char *name);
@@ -2412,7 +3045,7 @@ index e7f728f569a6ef233c5cd0d40917911bec375d19..65732b89915c54bff413758b0ee434f7
  #define RUNTIME_MOTION_MAX 32
  typedef struct { uint64_t sampling, delta_ns; float acc[3], gyro[3], angle[3], dir[9]; } RuntimeMotionState;   /* G, rev/s, rev, 3 axes */
  int runtime_rumble_enabled(void);
-@@ -142,7 +146,7 @@ void runtime_motion_start(void);   /* the game (re)started its sensor: angle and
+@@ -142,7 +158,7 @@ void runtime_motion_start(void);   /* the game (re)started its sensor: angle and
  void runtime_motion_feed(const double acc_g[3], const double gyro_rad_s[3], uint64_t now_ns);   /* runtime/motion_fusion.c */
  int runtime_motion_axes(const char *spec);   /* TOTK_GYRO_AXES ("-x,y,-z"): 1 set, 0 unset, -1 malformed */
  void runtime_motion_deadzone_default(double deg_s);   /* when TOTK_GYRO_DEADZONE is unset: 1.2 for HID motion, else 0 */
@@ -2422,7 +3055,7 @@ index e7f728f569a6ef233c5cd0d40917911bec375d19..65732b89915c54bff413758b0ee434f7
  #ifdef __OBJC__
  @class GCController;
 diff --git a/games/totk/runtime/services.c b/games/totk/runtime/services.c
-index 917fb37a39bdc2387fd34167d26dcde209253558..48259bac3b338d8758c6f11c5b18de745776ceb8 100644
+index 917fb37a39bdc2387fd34167d26dcde209253558..290a930c5ec5591c113d997e5b0a46dcf872887f 100644
 --- a/games/totk/runtime/services.c
 +++ b/games/totk/runtime/services.c
 @@ -78,8 +78,8 @@ static uint8_t *reserve_fixed(uint64_t at,uint64_t size){
@@ -2484,7 +3117,9 @@ index 917fb37a39bdc2387fd34167d26dcde209253558..48259bac3b338d8758c6f11c5b18de74
 +  for(uint64_t g=want;!low_space;g-=step){
 +   if((low_space=reserve_mac_gap(LOW_SEARCH_FROM,LOW_SIZE+g)))alias_len=g;
 +   if(g<least+step)break;
-+  }
+   }
+-  if(!low_space)runtime_fail(getenv("TOTK_ALIAS_GIB")?"reserve guest stack, heap and the TOTK_ALIAS_GIB alias region below 2^39":"reserve guest stack, heap and alias regions below 2^39");
+-  alias_space=low_space+LOW_SIZE;
 +  if(low_space)alias_space=low_space+LOW_SIZE;
 +  else{
 +   /* The lowest viable low reservation leaves the widest suffix for a later
@@ -2498,14 +3133,56 @@ index 917fb37a39bdc2387fd34167d26dcde209253558..48259bac3b338d8758c6f11c5b18de74
 +    }
 +    if(alias_space)low_space=candidate;else release_mac_reservation(candidate,LOW_SIZE);
 +   }
-   }
--  if(!low_space)runtime_fail(getenv("TOTK_ALIAS_GIB")?"reserve guest stack, heap and the TOTK_ALIAS_GIB alias region below 2^39":"reserve guest stack, heap and alias regions below 2^39");
--  alias_space=low_space+LOW_SIZE;
++  }
 +  if(!low_space)runtime_fail(pinned?"reserve guest stack, heap and the TOTK_ALIAS_GIB alias region below 2^39":"reserve guest stack, heap and alias regions below 2^39");
   }
  #endif
   heap=low_space+HEAP_OFF;
-@@ -376,7 +417,8 @@ uint64_t runtime_svc(unsigned num,uint64_t *r,const char *module,uint64_t offset
+@@ -197,6 +238,43 @@ static uint64_t alias_map(int unmap,uint64_t addr,uint64_t size){
+ uint64_t runtime_heap_base(void){return (uintptr_t)heap;}
+ /* Guest memory the game has committed (heap size + mapped alias pages), for memory reports (iOS app monitor). */
+ void runtime_guest_committed(uint64_t *heap_bytes,uint64_t *alias_mapped){*heap_bytes=heap_size;*alias_mapped=alias_bytes;}
++#if TARGET_OS_IPHONE && defined(TOTK_GAME_V121)
++/* Only committed guest heap and alias data are eligible. The broad ASLR range also includes host allocations. */
++static int cheats_guest_range(uint64_t address, unsigned width) {
++ if (width != 4 && width != 8) return 0;
++ if (address & (width - 1)) return 0;
++ for (unsigned i = 0; i < nstack_maps; i++)
++  if (overlaps(address, width, stack_maps[i].src, stack_maps[i].size)) return 0;
++ if (heap && address >= (uintptr_t)heap && width <= heap_size && address - (uintptr_t)heap <= heap_size - width) return 1;
++ return alias_space && address >= ALIAS_START && address - ALIAS_START < ALIAS_SIZE &&
++        alias_pages[(address - ALIAS_START) / 4096];
++}
++int runtime_cheats_guest_read(uint64_t address, void *out, unsigned width) {
++ pthread_mutex_lock(&memory_lock);
++ vm_size_t got = 0;
++ int ok = cheats_guest_range(address, width) &&
++          vm_read_overwrite(mach_task_self(), (vm_address_t)address, width, (vm_address_t)(uintptr_t)out, &got) == KERN_SUCCESS &&
++          got == width;
++ pthread_mutex_unlock(&memory_lock);
++ return ok;
++}
++/* A compare-and-exchange changes one complete value, only if the game has not written a new value since we read it.
++   Protect the access with the existing fault guard: a host read-only or inaccessible page simply gets skipped. */
++static int cheats_replace_word(uint64_t address, uint32_t before, uint32_t after) {
++ sigjmp_buf guard;
++ if (sigsetjmp(guard, 1)) return 0;
++ runtime_fault_guard = &guard;
++ int ok = __atomic_compare_exchange_n((uint32_t *)(uintptr_t)address, &before, after, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
++ runtime_fault_guard = NULL;
++ return ok;
++}
++int runtime_cheats_guest_replace(uint64_t address, uint32_t before, uint32_t after) {
++ pthread_mutex_lock(&memory_lock);
++ int ok = cheats_guest_range(address, sizeof before) && cheats_replace_word(address, before, after);
++ pthread_mutex_unlock(&memory_lock);
++ return ok;
++}
++#endif
+ /* Physical memory behind the guest regions (stack+heap and alias): resident pages, of which dirty, and pages the system
+    compressed. Committed sizes overstate what the game uses; these are what count against the iOS memory limit. */
+ static void region_pages(uint64_t a,uint64_t end,uint64_t *resident,uint64_t *dirty,uint64_t *compressed){
+@@ -376,7 +454,8 @@ uint64_t runtime_svc(unsigned num,uint64_t *r,const char *module,uint64_t offset
    pthread_mutex_lock(&memory_lock);
    if(addr>=ALIAS_START&&addr<ALIAS_START+ALIAS_SIZE){
     unsigned p=(unsigned)((addr-ALIAS_START)/4096),low=p,high=p+1;unsigned allocated=alias_pages[p];
@@ -2515,7 +3192,7 @@ index 917fb37a39bdc2387fd34167d26dcde209253558..48259bac3b338d8758c6f11c5b18de74
     base=ALIAS_START+(uint64_t)low*4096;size=(uint64_t)(high-low)*4096;state=allocated?5:0;perm=allocated?3:0;
    }
    for(unsigned i=0;i<nstack_maps;i++){
-@@ -391,8 +433,12 @@ uint64_t runtime_svc(unsigned num,uint64_t *r,const char *module,uint64_t offset
+@@ -391,8 +470,12 @@ uint64_t runtime_svc(unsigned num,uint64_t *r,const char *module,uint64_t offset
   }
   case 0x01:{size_t size=r[1];if(getenv("TOTK_MEM_LOG"))fprintf(stderr,"[totk-mem] SetHeapSize %#zx (image=%#llx alias=%#llx pool=%#llx)\n",size,(unsigned long long)runtime_image_bytes(),(unsigned long long)alias_bytes,(unsigned long long)APP_POOL);
    if(size>HEAP_CAP||size%0x200000||size+runtime_image_bytes()>APP_POOL){r[0]=0xd401;return r[0];}
@@ -2592,6 +3269,139 @@ index ef3b4b335573d4f043db8d3ec9055ba41af36693..467e1f4fa7e71f0be77cb76e0ed3e57c
   probe_clock_fixed=0;
  }
  int main(void){
+diff --git a/games/totk/tests/cheats/pickup_probe.S b/games/totk/tests/cheats/pickup_probe.S
+new file mode 100644
+index 0000000000000000000000000000000000000000..eaf7412559afc80196875dfda3899e2689ab51f1
+--- /dev/null
++++ b/games/totk/tests/cheats/pickup_probe.S
+@@ -0,0 +1,20 @@
++.text
++.p2align 2
++.globl _ios_pickup_probe_invoke
++_ios_pickup_probe_invoke:
++    stp x29, x30, [sp, #-16]!
++    mov x3, sp
++    str x3, [x2]
++    movz x9, #0xcdef
++    movk x9, #0x89ab, lsl #16
++    movk x9, #0x4567, lsl #32
++    movk x9, #0x8123, lsl #48
++    msr nzcv, x1
++    mov x1, #-1
++    blr x0
++    mov x3, sp
++    stp x3, x9, [x2, #8]
++    mrs x3, nzcv
++    stp x3, x1, [x2, #24]
++    ldp x29, x30, [sp], #16
++    ret
+diff --git a/games/totk/tests/cheats/pickup_probe.c b/games/totk/tests/cheats/pickup_probe.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..1384df0d99dfa3e24b60f1cf7c7580631e9caaba
+--- /dev/null
++++ b/games/totk/tests/cheats/pickup_probe.c
+@@ -0,0 +1,101 @@
++/* Native ARM64 probe using only a synthetic module mapping.
++   From games/totk:
++   xcrun clang -std=c11 -Wall -Wextra -Werror -Iruntime tests/cheats/pickup_probe.c \
++       tests/cheats/pickup_probe.S -o /tmp/totk-pickup-probe
++   /tmp/totk-pickup-probe */
++#include "cheats_pickup_v121.h"
++#include <assert.h>
++#include <libkern/OSCacheControl.h>
++#include <stdatomic.h>
++#include <stdio.h>
++#include <sys/mman.h>
++
++typedef struct {
++    uint64_t stack_before, stack_after, scratch, nzcv, count;
++} PickupResult;
++
++extern void ios_pickup_probe_invoke(const void *site, uint64_t nzcv, PickupResult *result);
++
++static void put_word(Module *m, uint32_t offset, uint32_t word) {
++    memcpy(m->base + offset, &word, sizeof word);
++}
++
++static void assert_refused_without_changes(Module *m) {
++    uint32_t site;
++    uint32_t veneer[IOS_PICKUP_VENEER_WORDS];
++    memcpy(&site, m->base + IOS_PICKUP_SITE, sizeof site);
++    memcpy(veneer, m->base + IOS_PICKUP_VENEER, sizeof veneer);
++    assert(ios_pickup_export(m));
++    assert(!memcmp(&site, m->base + IOS_PICKUP_SITE, sizeof site));
++    assert(!memcmp(veneer, m->base + IOS_PICKUP_VENEER, sizeof veneer));
++}
++
++int main(void) {
++    Module m = {
++        .name = "main",
++        .digest = ios_pickup_main_digest,
++        .text_end = IOS_PICKUP_TEXT_END,
++        .ro_off = IOS_PICKUP_RO_START,
++        .file_size = IOS_PICKUP_CONTROL_PAGE - 4,
++        .size = IOS_PICKUP_CONTROL_PAGE + IOS_PICKUP_PAGE_SIZE,
++    };
++    m.base = mmap(NULL, m.size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
++    assert(m.base != MAP_FAILED);
++
++    const uint32_t stock = 0x52800021u; /* stock fixture: movz w1, #1 */
++    put_word(&m, IOS_PICKUP_SITE, stock);
++    assert(!ios_pickup_validate(&m, false));
++    assert(ios_pickup_validate(&m, true));
++
++    m.digest = "wrong build";
++    assert_refused_without_changes(&m);
++    m.digest = ios_pickup_main_digest;
++    m.size -= IOS_PICKUP_PAGE_SIZE;
++    assert_refused_without_changes(&m);
++    m.size += IOS_PICKUP_PAGE_SIZE;
++
++    put_word(&m, IOS_PICKUP_SITE, 0xd503201fu);
++    assert_refused_without_changes(&m);
++    put_word(&m, IOS_PICKUP_SITE, stock);
++    put_word(&m, IOS_PICKUP_VENEER, 0xd503201fu);
++    assert(ios_pickup_validate(&m, true));
++    assert_refused_without_changes(&m);
++    put_word(&m, IOS_PICKUP_VENEER, 0);
++    put_word(&m, IOS_PICKUP_SITE, ios_pickup_branch(IOS_PICKUP_SITE, IOS_PICKUP_VENEER));
++    assert(ios_pickup_validate(&m, true)); /* only the branch is present */
++    assert_refused_without_changes(&m);
++    put_word(&m, IOS_PICKUP_SITE, stock);
++
++    assert(!ios_pickup_export(&m));
++    assert(!ios_pickup_validate(&m, true));
++    assert(ios_pickup_validate(&m, false));
++    assert_refused_without_changes(&m);
++    put_word(&m, IOS_PICKUP_SITE, stock);
++    assert(ios_pickup_validate(&m, true)); /* only the veneer is present */
++    assert_refused_without_changes(&m);
++    put_word(&m, IOS_PICKUP_SITE, ios_pickup_branch(IOS_PICKUP_SITE, IOS_PICKUP_VENEER));
++    assert(!ios_pickup_validate(&m, true));
++
++    /* Supply a return where the real guest would continue; no game code is mapped. */
++    put_word(&m, IOS_PICKUP_SITE + 4, 0xd65f03c0u);
++    const size_t text_len = (IOS_PICKUP_RO_START + IOS_PICKUP_PAGE_SIZE - 1u) & ~(size_t)(IOS_PICKUP_PAGE_SIZE - 1u);
++    sys_icache_invalidate(m.base, text_len);
++    assert(!mprotect(m.base, text_len, PROT_READ | PROT_EXEC));
++
++    _Atomic uint32_t *flag = (_Atomic uint32_t *)(void *)(m.base + IOS_PICKUP_CONTROL_PAGE + IOS_PICKUP_CONTROL_OFFSET);
++    const uint32_t states[] = {0, IOS_PICKUP_ENABLE_BIT, 2, 0};
++    for (uint64_t pattern = 0; pattern < 16; pattern++) {
++        for (size_t i = 0; i < sizeof states / sizeof *states; i++) {
++            const uint64_t nzcv = pattern << 28;
++            atomic_store(flag, states[i]);
++            PickupResult result = {0};
++            ios_pickup_probe_invoke(m.base + IOS_PICKUP_SITE, nzcv, &result);
++            assert(result.count == ((states[i] & IOS_PICKUP_ENABLE_BIT) ? 8u : 1u));
++            assert(result.stack_before == result.stack_after);
++            assert(result.scratch == UINT64_C(0x8123456789abcdef));
++            assert(result.nzcv == nzcv);
++        }
++    }
++    assert(!munmap(m.base, m.size));
++    puts("pickup probe passed: 64 native cases and stock, export, and refusal checks");
++}
 diff --git a/games/totk/third_party/d2r_gfx/gfx/nvn/fps_overlay.c b/games/totk/third_party/d2r_gfx/gfx/nvn/fps_overlay.c
 index 8821130656ccac9f174adabb36b916470a57a284..a51e6538faf744370aa813ee596109736804a2b8 100644
 --- a/games/totk/third_party/d2r_gfx/gfx/nvn/fps_overlay.c

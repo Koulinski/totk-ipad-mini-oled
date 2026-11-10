@@ -2,24 +2,32 @@
 
 An experimental Apple silicon port built locally from your own Switch files. This guide covers the 1.2.1 OLED configuration. It uses the MacNativeGames build tools and the revision below.
 
-This source patch is based on [MacNativeGames revision `4fdda415`](https://github.com/ly05010419/MacNativeGames/tree/4fdda41562a1c783fb1aacd18891ad4f48b8c360). The package includes the OLED graphics presets, Stats, shader precompilation, and controller support. The personal cheat catalog, captured motion-replay data, and device-specific shader caches are excluded. Performance below was measured on earlier device builds in this project. The public source patch compiled for iPadOS with locally prepared inputs. A clean first build and a physical-device run of this exact patch are still pending.
+This source patch is based on [MacNativeGames revision `4fdda415`](https://github.com/ly05010419/MacNativeGames/tree/4fdda41562a1c783fb1aacd18891ad4f48b8c360). It includes the OLED graphics presets, Stats, shader precompilation, controller support, and ten built-in cheats for 1.2.1. The private cheat catalog, captured motion-replay data, and device-specific shader caches stay out of the release. Performance below was measured on earlier iPad builds. See [what has been tested](#what-has-been-tested) for the scope of those results.
 
 ![Illustration of the graphics settings and the two output framings](images/ipad-mini-oled-settings.svg)
+
+*Original framing illustration. Both modes keep the same horizontal field of view. Centered 16:9 has black bars above and below the 2316 × 1303 game picture. Full Height extends the vertical view across the 2316 × 1512 display. Game screenshots stay private.*
 
 Keep the game, update, console keys, fonts, saves, and generated shader data on your own devices. A locally built IPA can contain rewritten game code even when the game image is transferred separately. Keep that IPA and the signed app private as well.
 
 ## Build and install
 
-1. Use an Apple silicon Mac with macOS 26 or newer, full Xcode 26 or newer with the iOS platform installed, Homebrew, and an iPad mini OLED running iPadOS 26 or newer. The OLED device build was made with Xcode 27. Keep the work folder and IPA output on the same APFS volume. Plan for roughly 80 GB free on the Mac for build and signing copies, and about 25 GB on the iPad. The game image alone takes about 17 GB. [MacNativeGames requirements](https://github.com/ly05010419/MacNativeGames/blob/main/docs/install.md)
-2. Have your own uncompressed Tears of the Kingdom base game (1.0.0), the matching 1.2.1 update, and your console's `prod.keys`. An XCI base can supply the system fonts. With an NSP base, provide your own firmware or locally extracted shared fonts as instructed by the builder. Put those inputs outside the source checkout.
-3. Install the dependencies and apply the OLED patch in Terminal.
+1. Prepare an Apple silicon Mac with macOS 26 or newer, Homebrew, and full Xcode 26 or newer with support for the iPad's installed iPadOS version. The earlier OLED device build used Xcode 27. The app targets iPadOS 26 or newer. Plan for roughly 80 GB free on the Mac and about 25 GB on the iPad. Keep the work folder and IPA on the same APFS volume. The game image alone takes about 17 GB. [MacNativeGames requirements](https://github.com/ly05010419/MacNativeGames/blob/main/docs/install.md)
+2. Gather your uncompressed Tears of the Kingdom 1.0.0 base game as an XCI or NSP, the separate cumulative 1.2.1 update as an NSP or NSZ, and your console's `prod.keys`. Keep these outside both Git checkouts. An XCI can supply the system fonts. With an NSP base, supply your own unpacked firmware directory or extracted shared fonts.
+3. Open Xcode once and finish its first-run setup, including installation of the iOS platform. Then open Terminal and install the build tools. Keep the same Xcode selected for building and signing. Adjust the example path if your Xcode is installed elsewhere.
 
    ```sh
    brew install opus libvpx python@3.14 xcodegen cmake ninja
+   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
    xcodebuild -version
+   xcrun --sdk iphoneos --show-sdk-version
    xcodebuild -downloadComponent MetalToolchain
    xcrun --sdk iphoneos metal --version
+   ```
 
+4. In Terminal, run the following from a folder where both repositories can be cloned as siblings. The two `git apply` commands check and then apply the patch to the pinned upstream revision.
+
+   ```sh
    git clone https://github.com/Koulinski/totk-ipad-mini-oled.git
    git clone https://github.com/ly05010419/MacNativeGames.git
    cd MacNativeGames
@@ -28,8 +36,9 @@ Keep the game, update, console keys, fonts, saves, and generated shader data on 
    git apply ../totk-ipad-mini-oled/ipad-mini-oled.patch
    ```
 
-4. In Xcode, sign in with your own Apple Account. Connect the iPad with a USB data cable, unlock it, and pair it with the Mac. On the iPad, open **Settings → Privacy & Security → Developer Mode** and follow the restart and confirmation prompts. Pairing makes that menu available. Use a development profile for your iPad that supports the app's Increased Memory Limit and Extended Virtual Addressing capabilities. [Apple's device setup guide](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device) · [Apple's Xcode signing guide](https://developer.apple.com/documentation/xcode/running-your-app-on-simulated-or-physical-devices)
-5. Build the local 1.2.1 IPA. Replace the quoted example paths with your own paths. The first build prepares the resources and shaders and can take a while. Run each command only after the previous one succeeds.
+5. In **Xcode → Settings → Accounts**, sign in with your Apple Account and choose your development team. If you need a local certificate, open **Manage Certificates**, click **+**, and choose **Apple Development**. The certificate and its private key must be available in this Mac's Keychain. The installer asks Xcode for a profile that includes both **Increased Memory Limit** and **Extended Virtual Addressing**. Use a team that can provision both capabilities. [Apple's certificate guide](https://developer.apple.com/documentation/xcode/sharing-your-teams-signing-certificates) · [Apple's Xcode signing guide](https://developer.apple.com/documentation/xcode/running-your-app-on-simulated-or-physical-devices)
+6. Connect the iPad with a USB data cable, unlock it, and accept the trust prompt. Pair it in Xcode's device window. On iPad, enable **Settings → Privacy & Security → Developer Mode**, restart, and confirm the setting when prompted. Pairing makes this menu available. Run `xcrun devicectl list devices` and note the iPad's exact name. [Apple's device setup guide](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
+7. Build the local IPA from the patched **MacNativeGames** checkout. Replace the quoted paths with your own. The first build extracts game data and builds shaders. Wait for each step to finish.
 
    ```sh
    base="$HOME/Games/your-base-game.xci"
@@ -42,17 +51,17 @@ Keep the game, update, console keys, fonts, saves, and generated shader data on 
      --platform ios --work "$work" --out "$ipa" --no-shader-reminder
    ```
 
-   Use the actual `.nsp` or `.nsz` update filename. For an NSP base, also pass `--firmware "/path/to/your/unpacked-firmware"` or `--shared-fonts "/path/to/your/extracted-fonts"`. The builder makes the Full Height overlay and shader seed locally. The IPA contains local game data and is for your own installation.
+   Use the actual `.nsp` or `.nsz` update filename. For an NSP base, add one of `--firmware "/path/to/your/unpacked-firmware"` or `--shared-fonts "/path/to/your/extracted-fonts"` to the build command. On a fresh build, the tool reports the update version from verified ExeFS hashes. Confirm it identifies **1.2.1**. The builder makes the Full Height overlay and shader seed locally. Check that the IPA exists at the printed output path.
 
-6. Install the app using the connected iPad's name and a bundle identifier under your signing team. Keep that identifier and team the same for future updates so the device can keep the app's data. Before updating an existing install, close it and back up both save profiles and the shader cache.
+8. Install over USB with the iPad unlocked. Before updating, quit the app and [back up its Documents](#back-up-and-switch-save-profiles). Keep your team and bundle identifier the same to retain those files.
 
    ```sh
    python3.14 games/totk/ios/tools/install_device.py "$ipa" --device "Your iPad name"
    ```
 
-   If you have more than one signing team, pass `--team YOUR_TEAM_ID`. The script chooses a stable, team-specific bundle ID unless you set `--bundle-id`. It checks both memory entitlements and the registered device before signing and installing. Provisioning expires according to your profile. Run the same command to renew.
+   Run this in the same Terminal session as the build, or replace `"$ipa"` with the full path to your IPA. If the helper lists multiple teams, rerun with `--team` and the listed 10-character team ID. It chooses a stable team-specific bundle ID by default and prints it before signing. If you choose `--bundle-id`, reuse that exact value for every update. The helper checks the memory entitlements and device membership in the profile, verifies the signature, and prints the provisioning expiration. Run the same command to renew. If iPadOS asks you to trust the developer, use **Settings → General → VPN & Device Management**.
 
-7. Open the app and let initial shader preparation finish. Open iPad **Settings → Apps → Tears of the Kingdom → Graphics** to choose a preset, then fully quit the game and reopen it. For the tested 60 FPS profile, choose **Balanced (900p, Real 60 FPS)**.
+9. Open the app and let initial data verification and shader preparation finish. Open **Settings → Apps → Tears of the Kingdom → Graphics**, choose a preset, then quit the game from the App Switcher and reopen it. For the tested 60 FPS profile, choose **Balanced (900p, Real 60 FPS)**.
 
 ## Graphics and controls
 
@@ -78,8 +87,48 @@ Tap the gameplay view to reveal the toolbar. The buttons hide again after about 
 | --- | --- |
 | Shaders | Start or stop **Build Shaders** and view its progress. You can hide the panel while work continues. This precompiles known recipes. New areas can still encounter new pipelines. |
 | Stats | Toggle FPS, resolution and MetalFX, display frame time (P95), CPU submit time, GPU render time (P95), and app memory. The selections persist. Clear all six to hide the readout. |
+| Cheats | Toggle individual 1.2.1 cheats for the current session. |
 
 Touch controls are available. A DualSense was tested on the OLED mini, including gyro aiming. USB-C GameSir gyro still needs a device test.
+
+## Cheats
+
+1. [Back up the save profile](#back-up-and-switch-save-profiles) before enabling a cheat for the first time. Try changes on a copy of your save.
+2. Load the save, tap the game view to reveal the toolbar, then tap **Cheats**.
+3. Turn on the switches you want and tap **Done**. To stop an effect, reopen **Cheats**, turn its switch off, and tap **Done**.
+
+All switches start off at launch and apply only to the current session. Items, rupees, or other effects already written to a save can persist after a switch is turned off.
+
+| Switch | Effect |
+| --- | --- |
+| Refill Hearts | Refills the current hearts up to the existing maximum. |
+| Refill Stamina | Restores the current stamina meter up to its existing maximum. |
+| Refill Battery | Refills the current energy cells up to their existing maximum. |
+| Refill Weapon Durability | Refills the durability of the equipped, usable weapon. |
+| Refill Bow Durability | Refills the durability of the equipped, usable bow. |
+| Refill Shield Durability | Refills the durability of the equipped, usable shield. |
+| Keep 888 Arrows | Tops up arrows to at least 888. Higher counts stay as they are. |
+| Keep 999,998 Rupees | Tops up rupees to at least 999,998. Higher counts stay as they are. |
+| Moon Jump (Hold X) | Adds upward movement while holding the game's X button. |
+| Item Pickup Multiplier (8x) | Makes a one-unit pickup of a stackable material add eight units. |
+
+An earlier OLED build verified stamina refill in gameplay. A separate copied-save test verified the pickup switch added eight with the switch on and one with it off. The public version passed local switch and ARM64 tests. Broader cheat gameplay testing on the current build is still open.
+
+## Back up and switch save profiles
+
+- **Back up before updates or cheats.** Quit the game. In Files on iPad, open **On My iPad → Tears of the Kingdom**. Copy the `save` folder, any `save-mac-benchmark` folder, and `shader-cache` to a separate backup location.
+- **Use a copied Mac profile.** With both apps closed, copy your existing Mac profile folder to the iPad app's Documents as `save-mac-benchmark`, retaining its `account.uid` and `save` subfolder. The default Mac profile path is `~/Library/Application Support/MacNativeGames/TOTK/profile`. In **Settings → Apps → Tears of the Kingdom → Saves**, enable **Use Copied Mac Saves** and relaunch. Turn the switch off and relaunch to return to the iPad profile.
+
+## What has been tested
+
+| Feature | Validation |
+| --- | --- |
+| Build and signing | The public source patch compiled for iPadOS with locally prepared inputs. Earlier builds installed on the OLED mini. A clean first build and physical-device run of the current public patch are pending. |
+| Centered 16:9 and Full Height | Both displayed on the OLED mini in earlier builds. The scope and opening-film framing changes were checked on Mac and compiled for iPad. Projected world labels and the transition after cutscenes still need device checks. |
+| Balanced 900p at 60 real FPS | Measured on an earlier OLED build. See [the Depths benchmark below](#measured-on-the-ipad-mini-oled). Full Height still needs a matched device benchmark. |
+| Controls and audio | Earlier OLED checks covered DualSense gyro and opening cutscene audio sync. USB-C GameSir gyro remains unverified. |
+| Stats and shaders | Earlier OLED builds ran shader preparation. The newer Stats panel, its persistence, and its corner clearance still need a live check. |
+| Cheats | The 8× hook passed 64 native ARM64 cases. Local tests exercised all ten switches and the backup check. Earlier iPad builds verified stamina refill and pickup on and off. Testing the full public set during gameplay remains open. |
 
 ## Measured on the iPad mini OLED
 
@@ -100,6 +149,17 @@ The longest gaps were about 83 ms in the first sample and 133 ms on the repeat. 
 - **Performance.** A separate Mac trace found a mesh decode job that used about 63 ms of CPU time. Two small decoder changes showed no measurable gain. Test more scenes on iPad, including long sessions, thermals, and memory pressure.
 - **Device validation.** Opening audio sync, DualSense gyro, and Full Height gameplay were checked on the OLED mini. The newer Stats menu, its persistence, and overlay clearance around display corners still need a live check. HDR and ray-traced reflections are experiments.
 
-For installation failures, confirm the device is paired and unlocked, Developer Mode is on, and your development profile matches the app's bundle identifier, capabilities, and iPad. If the builder reports a module mismatch, verify that your update is exactly 1.2.1. If the app reaches the game but stutters, note the preset, area, whether the shader cache was warm, and whether frame generation was on. Share the preset and observed behavior in bug reports. Keep local game data and account details private.
+## Troubleshooting
+
+| If you see | Check |
+| --- | --- |
+| No iPhoneOS SDK or Metal toolchain | Open full Xcode and finish installing its iOS platform and Metal toolchain. Check `xcodebuild -version`, `xcrun --sdk iphoneos --show-sdk-version`, and `xcrun --sdk iphoneos metal --version` in the same Terminal session. |
+| Patch fails to apply | Confirm `git rev-parse HEAD` matches the pinned revision and `git status --short` is empty before applying the patch. Use a fresh clone if the checkout already has changes you want to keep. |
+| Module hashes or shared fonts fail verification | Check the actual base and update versions and make sure your copies are complete. For an NSP base, check the firmware or font path. The build prints the failing step and saves detailed logs under `$work/logs`. |
+| No device found | Check the USB cable, trust prompt, unlock state, and Developer Mode. Confirm the iPad appears in `xcrun devicectl list devices`. |
+| Signing or provisioning fails | Check Xcode Accounts, the Apple Development certificate and its private key, the team, device registration, and both required memory entitlements. The helper prints the location of its Xcode log if provisioning fails. |
+| Cheats button is missing | Confirm you built the 1.2.1 update, load a save, and tap the game view to reveal the toolbar. A refused switch shows a message in the Cheats panel. |
+| Build or install runs out of space | Check free space on both devices. Keep the work folder and IPA on one APFS volume so the builder can reuse data by cloning it. |
+| First launch takes time or a new scene stutters | Give initial verification and shader work time to finish. Try **Shaders → Build Shaders** and compare the same route again. When reporting a problem, include the preset, area, shader-cache state, and frame generation setting. The app writes `log.txt` in its Documents. Keep game files and account details private. |
 
 The patch is distributed under the MIT license with upstream notices preserved. Tears of the Kingdom and Nintendo Switch are trademarks of Nintendo. This project is independent of Nintendo.
