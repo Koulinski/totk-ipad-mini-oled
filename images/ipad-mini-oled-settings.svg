@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 612" role="img" aria-labelledby="title description">
+  <title id="title">iPad mini OLED graphics settings</title>
+  <desc id="description">An illustrated settings preview. Balanced 900p Real 60 FPS is selected. The other choices are Performance 720p, Balanced 900p, Quality 1080p, and Full Height 1600 by 1044 Real 60 FPS. The diagrams show centered 16:9 output and the extended Full Height output.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; fill: #152339; }
+    .heading { font-size: 27px; font-weight: 700; }
+    .subheading { font-size: 20px; font-weight: 700; }
+    .row { font-size: 19px; }
+    .muted { font-size: 16px; fill: #4a5e78; }
+    .small { font-size: 14px; fill: #4a5e78; }
+    .screen { font-size: 17px; font-weight: 650; fill: #123153; }
+  </style>
+  <rect x="0" y="0" width="1120" height="612" rx="28" fill="#eff4fa"/>
+  <text x="44" y="61" class="heading">iPad mini OLED graphics settings</text>
+  <text x="44" y="91" class="muted">Settings → Apps → Tears of the Kingdom → Graphics</text>
+
+  <rect x="42" y="126" width="590" height="431" rx="19" fill="#fff"/>
+  <text x="69" y="172" class="subheading">Render Preset</text>
+  <text x="72" y="223" class="row">Performance (720p)</text>
+  <text x="72" y="270" class="row">Balanced (900p)</text>
+  <rect x="60" y="286" width="553" height="45" rx="11" fill="#e4f0fd"/>
+  <text x="72" y="316" class="row" font-weight="650">Balanced (900p, Real 60 FPS)</text>
+  <path d="M 566 307 l 8 8 l 14 -16" fill="none" stroke="#155fa8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="72" y="363" class="row">Quality (1080p)</text>
+  <text x="72" y="410" class="row">Full Height (1600 × 1044, Real 60 FPS)</text>
+  <path d="M 69 442 H 605" stroke="#d7e1ed"/>
+  <text x="72" y="480" class="row">Frame Generation (60 FPS Cap)</text>
+  <text x="72" y="514" class="muted">Available with the three 30 FPS presets</text>
+  <rect x="548" y="460" width="48" height="26" rx="13" fill="#a7b5c6"/>
+  <circle cx="562" cy="473" r="10" fill="#fff"/>
+
+  <rect x="657" y="126" width="421" height="431" rx="19" fill="#fff"/>
+  <text x="684" y="172" class="subheading">Output framing</text>
+  <text x="684" y="209" class="muted">Centered 16:9</text>
+  <rect x="684" y="223" width="211" height="138" rx="9" fill="#152339"/>
+  <rect x="684" y="233" width="211" height="118.7" fill="#b7d7fb"/>
+  <text x="789.5" y="298" class="screen" text-anchor="middle">2316 × 1303</text>
+  <text x="909" y="281" class="small">Black bars</text>
+  <text x="909" y="303" class="small">above and below</text>
+  <text x="684" y="401" class="muted">Full Height</text>
+  <rect x="684" y="415" width="211" height="138" rx="9" fill="#b7d7fb"/>
+  <text x="789.5" y="491" class="screen" text-anchor="middle">2316 × 1512</text>
+  <text x="909" y="457" class="small">Extends the view</text>
+  <text x="909" y="479" class="small">above and below</text>
+  <text x="909" y="501" class="small">the 16:9 frame</text>
+
+  <text x="44" y="587" class="small">Illustration of the available settings and output. Device UI may differ.</text>
+</svg>
